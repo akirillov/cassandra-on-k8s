@@ -1,0 +1,10 @@
+*.pem
+*.pub
+/state
+/runs
+/admin.conf
+/inventory.yaml
+.idea/
+*.iws
+*.iml
+.konvoy*

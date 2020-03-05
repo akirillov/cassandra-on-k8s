@@ -1,0 +1,36 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cassandra
+  namespace: dc-1
+spec:
+  clusterIP: None
+  ports:
+    - port: 9042
+  selector:
+    app: cassandra
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cassandra
+  namespace: dc-2
+spec:
+  clusterIP: None
+  ports:
+    - port: 9042
+  selector:
+    app: cassandra
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cassandra
+  namespace: dc-3
+spec:
+  clusterIP: None
+  ports:
+    - port: 9042
+  selector:
+    app: cassandra

@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cassandra
+  namespace: dc-2
+  labels:
+    app: cassandra
+spec:
+  serviceName: cassandra
+  replicas: 5
+  selector:
+    matchLabels:
+      app: cassandra
+  template:
+    metadata:
+      labels:
+        app: cassandra
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: dc
+                    operator: In
+                    values:
+                      - DC2
+      terminationGracePeriodSeconds: 1800
+      containers:
+        - name: cassandra
+          image: akirillov/cassandra:3.11.5-k8s-11
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 7000
+              name: intra-node
+            - containerPort: 7001
+              name: tls-intra-node
+            - containerPort: 7199
+              name: jmx
+            - containerPort: 9042
+              name: cql
+          resources:
+            limits:
+              cpu: 2
+              memory: 5Gi
+            requests:
+              cpu: 2
+              memory: 5Gi
+          securityContext:
+            capabilities:
+              add:
+                - IPC_LOCK
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - nodetool drain
+          env:
+            - name: MAX_HEAP_SIZE
+              value: 4G
+            #Recommended: 100M per CPU core
+            - name: HEAP_NEWSIZE
+              value: 400M
+            - name: CASSANDRA_SEEDS
+              value: "cassandra-0.cassandra.dc-1.svc.cluster.local,cassandra-0.cassandra.dc-2.svc.cluster.local,cassandra-0.cassandra.dc-3.svc.cluster.local"
+            - name: CASSANDRA_ENDPOINT_SNITCH
+              value: "GossipingPropertyFileSnitch"
+            - name: CASSANDRA_CLUSTER_NAME
+              value: "K8Demo"
+            - name: CASSANDRA_DC
+              value: "DC2"
+            - name: CASSANDRA_RACK
+              value: "RACK1"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - /ready-probe.sh
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+          # These volume mounts are persistent. They are like inline claims,
+          # but not exactly because the names need to match exactly one of
+          # the stateful pod volumes.
+          volumeMounts:
+            - name: cassandra-data
+              mountPath: /cassandra_data
+  # These are converted to volume claims by the controller
+  # and mounted at the paths mentioned above.
+  volumeClaimTemplates:
+    - metadata:
+        name: cassandra-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 100Gi
